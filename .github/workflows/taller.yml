@@ -2,29 +2,61 @@ name: Clasificador de Etapa de Vida
 
 on:
   workflow_dispatch:
+    inputs:
+      dia:
+        description: 'Día de nacimiento'
+        required: true
+      mes:
+        description: 'Mes de nacimiento'
+        required: true
+      anio:
+        description: 'Año de nacimiento'
+        required: true
 
 jobs:
-  clasificar-etapa:
+  calcular-edad:
+    name: Calcular Edad
     runs-on: ubuntu-latest
+    outputs:
+      edad_actual: ${{ steps.calculo.outputs.edad }}
+    steps:
+      - name: Calcular edad en años
+        id: calculo
+        run: |
+          dia=${{ github.event.inputs.dia }}
+          mes=${{ github.event.inputs.mes }}
+          anio=${{ github.event.inputs.anio }}
+          nacimiento="${anio}-${mes}-${dia}"
+          hoy=$(date +%Y-%m-%d)
+
+          edad_segundos=$(($(date -d "$hoy" +%s) - $(date -d "$nacimiento" +%s)))
+          edad_anios=$(($edad_segundos / 31556952))
+
+          echo "edad=$edad_anios" >> $GITHUB_OUTPUT
+
+  clasificar-etapa:
+    name: Clasificar Etapa de Vida
+    runs-on: ubuntu-latest
+    needs: calcular-edad
+    env:
+      LIM_NINEZ: ${{ vars.LIM_NINEZ }}
+      LIM_ADOLESCENCIA: ${{ vars.LIM_ADOLESCENCIA }}
+      LIM_ADULTO_JOVEN: ${{ vars.LIM_ADULTO_JOVEN }}
+      LIM_ADULTO: ${{ vars.LIM_ADULTO }}
     steps:
       - name: Clasificar según edad
         run: |
-          edad=24
+          edad=${{ needs.calcular-edad.outputs.edad_actual }}
 
-          lim_ninez=$(expr $LIM_NINEZ + 0)
-          lim_adolescencia=$(expr $LIM_ADOLESCENCIA + 0)
-          lim_adulto_joven=$(expr $LIM_ADULTO_JOVEN + 0)
-          lim_adulto=$(expr $LIM_ADULTO + 0)
-
-          if [ "$edad" -le "$lim_ninez" ]; then
+          if [ "$edad" -ge 5 ] && [ "$edad" -le "$LIM_NINEZ" ]; then
             etapa="Niñez"
-          elif [ "$edad" -le "$lim_adolescencia" ]; then
+          elif [ "$edad" -le "$LIM_ADOLESCENCIA" ]; then
             etapa="Adolescencia"
-          elif [ "$edad" -le "$lim_adulto_joven" ]; then
+          elif [ "$edad" -le "$LIM_ADULTO_JOVEN" ]; then
             etapa="Adulto Joven"
-          elif [ "$edad" -le "$lim_adulto" ]; then
+          elif [ "$edad" -le "$LIM_ADULTO" ]; then
             etapa="Adulto"
-          elif [ "$edad" -ge $((lim_adulto + 1)) ]; then
+          elif [ "$edad" -ge $((LIM_ADULTO + 1)) ]; then
             etapa="Tercera Edad"
           else
             etapa="No clasificada"
@@ -32,3 +64,4 @@ jobs:
 
           echo "Edad: $edad años"
           echo "Etapa de vida: $etapa"
+
