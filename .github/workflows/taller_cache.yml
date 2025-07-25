@@ -3,7 +3,7 @@ name: upload-artifact
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   convert_and_upload_text_to_json:
