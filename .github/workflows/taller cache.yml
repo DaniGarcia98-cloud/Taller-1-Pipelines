@@ -1,0 +1,42 @@
+name: upload-artifact
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  convert_and_upload_text_to_json:
+    name: Convert and upload text to JSON
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set JSON content and hash
+        id: set-json
+        run: |
+          echo '::set-output name=json::{"name": "pipelines","activity": 3,"module": 2,"isRequired": false}'
+          echo "${{ steps.set-json.outputs.json }}" > json_content.txt
+          HASH=$(echo "${{ steps.set-json.outputs.json }}" | sha256sum | cut -d ' ' -f 1)
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+
+      - name: Restore cache if exists
+        id: cache-json
+        uses: actions/cache@v4
+        with:
+          path: archivo.json
+          key: json-cache-${{ steps.set-json.outputs.hash }}
+
+      - name: Convert JSON to file (only if not cached)
+        if: steps.cache-json.outputs.cache-hit != 'true'
+        uses: devops-actions/json-to-file@v1.0.4
+        with:
+          json: '${{ steps.set-json.outputs.json }}'
+          filename: 'archivo.json'
+
+      - name: Upload JSON file as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: json-artifact
+          path: archivo.json
